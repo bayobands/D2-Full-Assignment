@@ -34,12 +34,11 @@ const redoBtn = document.createElement("button");
 redoBtn.textContent = "Redo";
 buttonRow.appendChild(redoBtn);
 
-// 🆕 Export button (Step 10)
 const exportBtn = document.createElement("button");
 exportBtn.textContent = "Export PNG";
 buttonRow.appendChild(exportBtn);
 
-// Marker buttons
+// --- Marker Buttons ---
 const thinBtn = document.createElement("button");
 thinBtn.textContent = "Thin Marker";
 thinBtn.classList.add("selectedTool");
@@ -50,16 +49,17 @@ thickBtn.textContent = "Thick Marker";
 buttonRow.appendChild(thickBtn);
 
 // ======================================================
-// STICKER BUTTONS (Step 8 + Step 9)
+// STICKER BUTTONS (Steps 8 + 9 + 12 rotation)
 // ======================================================
 const stickerRow = document.createElement("div");
 document.body.appendChild(stickerRow);
 
-// Initial stickers
-const stickers = ["😺", "🌈", "🍀"];
 let currentSticker: string | null = null;
+let currentRotation = 0;
 
-// Shared function to generate ANY sticker button
+const stickers = ["😺", "🌈", "🍀"];
+
+// Shared factory for sticker buttons
 function createStickerButton(sticker: string) {
   const btn = document.createElement("button");
   btn.textContent = sticker;
@@ -67,7 +67,8 @@ function createStickerButton(sticker: string) {
 
   btn.addEventListener("click", () => {
     currentSticker = sticker;
-    currentThickness = 0; // disable marker mode
+    currentThickness = 0;
+    currentRotation = Math.random() * 360; // Step 12 rotation
     selectTool(btn);
   });
 }
@@ -75,7 +76,7 @@ function createStickerButton(sticker: string) {
 // Create initial sticker buttons
 stickers.forEach((s) => createStickerButton(s));
 
-// Step 9 — Custom sticker button
+// Custom sticker button
 const addStickerBtn = document.createElement("button");
 addStickerBtn.textContent = "+ Custom Sticker";
 stickerRow.appendChild(addStickerBtn);
@@ -91,9 +92,8 @@ addStickerBtn.addEventListener("click", () => {
 // ======================================================
 // MARKER CONFIG
 // ======================================================
-let currentThickness = 2;
+let currentThickness = 3;
 
-// Highlight selected tool
 function selectTool(btn: HTMLButtonElement) {
   document.querySelectorAll("button").forEach((b) =>
     b.classList.remove("selectedTool")
@@ -101,27 +101,28 @@ function selectTool(btn: HTMLButtonElement) {
   btn.classList.add("selectedTool");
 }
 
-// Marker mode selection
 thinBtn.addEventListener("click", () => {
   currentSticker = null;
-  currentThickness = 2;
+  currentThickness = 3;
   selectTool(thinBtn);
 });
 
 thickBtn.addEventListener("click", () => {
   currentSticker = null;
-  currentThickness = 7;
+  currentThickness = 10;
   selectTool(thickBtn);
 });
 
 // ======================================================
-// COMMAND PATTERN
+// COMMAND INTERFACES
 // ======================================================
 interface DisplayCommand {
   display(ctx: CanvasRenderingContext2D): void;
 }
 
-// ---------- Marker Command ----------
+// ======================================================
+// MARKER COMMAND
+// ======================================================
 class MarkerCommand implements DisplayCommand {
   points: Array<[number, number]> = [];
   thickness: number;
@@ -140,66 +141,90 @@ class MarkerCommand implements DisplayCommand {
 
     ctx.lineWidth = this.thickness;
     ctx.lineCap = "round";
+
     ctx.beginPath();
     ctx.moveTo(this.points[0][0], this.points[0][1]);
 
     for (let i = 1; i < this.points.length; i++) {
       ctx.lineTo(this.points[i][0], this.points[i][1]);
     }
+
     ctx.stroke();
   }
 }
 
-// ---------- Sticker Command ----------
+// ======================================================
+// STICKER COMMAND (with rotation for Step 12)
+// ======================================================
 class StickerCommand implements DisplayCommand {
   x: number;
   y: number;
   sticker: string;
+  rotation: number;
 
-  constructor(x: number, y: number, sticker: string) {
+  constructor(x: number, y: number, sticker: string, rotation: number) {
     this.x = x;
     this.y = y;
     this.sticker = sticker;
-  }
-
-  display(ctx: CanvasRenderingContext2D) {
-    ctx.font = "50px serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(this.sticker, this.x, this.y);
-  }
-}
-
-// ---------- Sticker Preview Command ----------
-class StickerPreviewCommand implements DisplayCommand {
-  x: number;
-  y: number;
-  sticker: string;
-
-  constructor(x: number, y: number, sticker: string) {
-    this.x = x;
-    this.y = y;
-    this.sticker = sticker;
-  }
-
-  update(x: number, y: number, sticker: string) {
-    this.x = x;
-    this.y = y;
-    this.sticker = sticker;
+    this.rotation = rotation;
   }
 
   display(ctx: CanvasRenderingContext2D) {
     ctx.save();
-    ctx.globalAlpha = 0.5;
-    ctx.font = "24px serif";
+
+    ctx.translate(this.x, this.y);
+    ctx.rotate(this.rotation * Math.PI / 180);
+
+    ctx.font = "32px serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(this.sticker, this.x, this.y);
+
+    ctx.fillText(this.sticker, 0, 0);
     ctx.restore();
   }
 }
 
-// ---------- Marker Preview Command ----------
+// ======================================================
+// STICKER PREVIEW COMMAND (with rotation)
+// ======================================================
+class StickerPreviewCommand implements DisplayCommand {
+  x: number;
+  y: number;
+  sticker: string;
+  rotation: number;
+
+  constructor(x: number, y: number, sticker: string, rotation: number) {
+    this.x = x;
+    this.y = y;
+    this.sticker = sticker;
+    this.rotation = rotation;
+  }
+
+  update(x: number, y: number, sticker: string, rotation: number) {
+    this.x = x;
+    this.y = y;
+    this.sticker = sticker;
+    this.rotation = rotation;
+  }
+
+  display(ctx: CanvasRenderingContext2D) {
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    ctx.rotate(this.rotation * Math.PI / 180);
+
+    ctx.globalAlpha = 0.5;
+    ctx.font = "32px serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    ctx.fillText(this.sticker, 0, 0);
+    ctx.restore();
+  }
+}
+
+// ======================================================
+// MARKER PREVIEW COMMAND
+// ======================================================
 class ToolPreviewCommand implements DisplayCommand {
   x: number;
   y: number;
@@ -221,9 +246,11 @@ class ToolPreviewCommand implements DisplayCommand {
     ctx.save();
     ctx.lineWidth = 1;
     ctx.strokeStyle = "rgba(0,0,0,0.5)";
+
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.thickness / 2, 0, Math.PI * 2);
     ctx.stroke();
+
     ctx.restore();
   }
 }
@@ -243,13 +270,9 @@ let previewCommand: StickerPreviewCommand | ToolPreviewCommand | null = null;
 function redraw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  for (const cmd of displayList) {
-    cmd.display(ctx);
-  }
+  for (const cmd of displayList) cmd.display(ctx);
 
-  if (!currentCommand && previewCommand) {
-    previewCommand.display(ctx);
-  }
+  if (!currentCommand && previewCommand) previewCommand.display(ctx);
 }
 
 canvas.addEventListener("drawing-changed", redraw);
@@ -263,23 +286,34 @@ canvas.addEventListener("mousemove", (e) => {
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
 
-  // ---------- Sticker Preview ----------
+  // --- Sticker Preview (Step 12 + Step 8b) ---
   if (currentSticker) {
     const safeSticker = currentSticker ?? "";
+
     if (
       !previewCommand ||
       !(previewCommand instanceof StickerPreviewCommand)
     ) {
-      previewCommand = new StickerPreviewCommand(x, y, safeSticker);
+      previewCommand = new StickerPreviewCommand(
+        x,
+        y,
+        safeSticker,
+        currentRotation,
+      );
     } else {
-      previewCommand.update(x, y, safeSticker);
+      previewCommand.update(
+        x,
+        y,
+        safeSticker,
+        currentRotation,
+      );
     }
 
     canvas.dispatchEvent(new Event("tool-moved"));
     return;
   }
 
-  // ---------- Marker Preview ----------
+  // --- Marker Preview ---
   if (
     !previewCommand ||
     !(previewCommand instanceof ToolPreviewCommand)
@@ -297,7 +331,9 @@ canvas.addEventListener("mousemove", (e) => {
   }
 });
 
-// Mouse down — sticker OR marker
+// ======================================================
+// MOUSEDOWN — draw or place sticker
+// ======================================================
 canvas.addEventListener("mousedown", (e) => {
   const rect = canvas.getBoundingClientRect();
   const x = e.clientX - rect.left;
@@ -307,8 +343,18 @@ canvas.addEventListener("mousedown", (e) => {
 
   if (currentSticker) {
     const safeSticker = currentSticker ?? "";
-    const stickerCmd = new StickerCommand(x, y, safeSticker);
+    const stickerCmd = new StickerCommand(
+      x,
+      y,
+      safeSticker,
+      currentRotation,
+    );
+
     displayList.push(stickerCmd);
+
+    // STEP 12: Generate NEW random rotation for next sticker
+    currentRotation = Math.random() * 360;
+
     canvas.dispatchEvent(new Event("drawing-changed"));
     return;
   }
@@ -343,25 +389,18 @@ redoBtn.addEventListener("click", () => {
 });
 
 // ======================================================
-// STEP 10 — EXPORT PNG (1024x1024)
+// STEP 10 — EXPORT
 // ======================================================
 exportBtn.addEventListener("click", () => {
-  // Create a high-res canvas
   const bigCanvas = document.createElement("canvas");
   bigCanvas.width = 1024;
   bigCanvas.height = 1024;
 
   const bigCtx = bigCanvas.getContext("2d")!;
-
-  // Scale so our commands draw correctly (4×)
   bigCtx.scale(4, 4);
 
-  // Draw everything using SAME COMMANDS
-  for (const cmd of displayList) {
-    cmd.display(bigCtx);
-  }
+  for (const cmd of displayList) cmd.display(bigCtx);
 
-  // Export PNG
   const link = document.createElement("a");
   link.href = bigCanvas.toDataURL("image/png");
   link.download = "sketchpad.png";
