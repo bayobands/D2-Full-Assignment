@@ -21,7 +21,7 @@ const ctx = canvas.getContext("2d")!;
 const buttonRow = document.createElement("div");
 document.body.appendChild(buttonRow);
 
-// Clear, Undo, Redo
+// Clear, Undo, Redo, Export
 const clearBtn = document.createElement("button");
 clearBtn.textContent = "Clear";
 buttonRow.appendChild(clearBtn);
@@ -33,6 +33,11 @@ buttonRow.appendChild(undoBtn);
 const redoBtn = document.createElement("button");
 redoBtn.textContent = "Redo";
 buttonRow.appendChild(redoBtn);
+
+// 🆕 Export button (Step 10)
+const exportBtn = document.createElement("button");
+exportBtn.textContent = "Export PNG";
+buttonRow.appendChild(exportBtn);
 
 // Marker buttons
 const thinBtn = document.createElement("button");
@@ -62,7 +67,7 @@ function createStickerButton(sticker: string) {
 
   btn.addEventListener("click", () => {
     currentSticker = sticker;
-    currentThickness = 0; // turn off marker mode
+    currentThickness = 0; // disable marker mode
     selectTool(btn);
   });
 }
@@ -79,8 +84,8 @@ addStickerBtn.addEventListener("click", () => {
   const text = prompt("Enter a custom sticker:", "🧽");
   if (!text) return;
 
-  stickers.push(text); // treat same as built-ins
-  createStickerButton(text); // auto-generate new button
+  stickers.push(text);
+  createStickerButton(text);
 });
 
 // ======================================================
@@ -116,7 +121,7 @@ interface DisplayCommand {
   display(ctx: CanvasRenderingContext2D): void;
 }
 
-// ---------- Marker Command (Step 5) ----------
+// ---------- Marker Command ----------
 class MarkerCommand implements DisplayCommand {
   points: Array<[number, number]> = [];
   thickness: number;
@@ -145,7 +150,7 @@ class MarkerCommand implements DisplayCommand {
   }
 }
 
-// ---------- Sticker Command (Step 8a) ----------
+// ---------- Sticker Command ----------
 class StickerCommand implements DisplayCommand {
   x: number;
   y: number;
@@ -165,7 +170,7 @@ class StickerCommand implements DisplayCommand {
   }
 }
 
-// ---------- Sticker Preview Command (Step 8b) ----------
+// ---------- Sticker Preview Command ----------
 class StickerPreviewCommand implements DisplayCommand {
   x: number;
   y: number;
@@ -194,7 +199,7 @@ class StickerPreviewCommand implements DisplayCommand {
   }
 }
 
-// ---------- Marker Preview Command (Step 7) ----------
+// ---------- Marker Preview Command ----------
 class ToolPreviewCommand implements DisplayCommand {
   x: number;
   y: number;
@@ -233,7 +238,7 @@ let currentCommand: MarkerCommand | null = null;
 let previewCommand: StickerPreviewCommand | ToolPreviewCommand | null = null;
 
 // ======================================================
-// REDRAW FUNCTION (Step 3)
+// REDRAW FUNCTION
 // ======================================================
 function redraw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -258,7 +263,7 @@ canvas.addEventListener("mousemove", (e) => {
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
 
-  // ---------- STICKER PREVIEW (Step 8b) ----------
+  // ---------- Sticker Preview ----------
   if (currentSticker) {
     const safeSticker = currentSticker ?? "";
     if (
@@ -274,7 +279,7 @@ canvas.addEventListener("mousemove", (e) => {
     return;
   }
 
-  // ---------- MARKER PREVIEW (Step 7) ----------
+  // ---------- Marker Preview ----------
   if (
     !previewCommand ||
     !(previewCommand instanceof ToolPreviewCommand)
@@ -292,7 +297,7 @@ canvas.addEventListener("mousemove", (e) => {
   }
 });
 
-// Click to place sticker OR start drawing
+// Mouse down — sticker OR marker
 canvas.addEventListener("mousedown", (e) => {
   const rect = canvas.getBoundingClientRect();
   const x = e.clientX - rect.left;
@@ -300,7 +305,6 @@ canvas.addEventListener("mousedown", (e) => {
 
   redoStack = [];
 
-  // ---------- Step 8a: Place Sticker ----------
   if (currentSticker) {
     const safeSticker = currentSticker ?? "";
     const stickerCmd = new StickerCommand(x, y, safeSticker);
@@ -309,7 +313,6 @@ canvas.addEventListener("mousedown", (e) => {
     return;
   }
 
-  // Marker stroke
   currentCommand = new MarkerCommand(x, y, currentThickness);
   displayList.push(currentCommand);
   canvas.dispatchEvent(new Event("drawing-changed"));
@@ -339,7 +342,33 @@ redoBtn.addEventListener("click", () => {
   canvas.dispatchEvent(new Event("drawing-changed"));
 });
 
-// Example asset at bottom
+// ======================================================
+// STEP 10 — EXPORT PNG (1024x1024)
+// ======================================================
+exportBtn.addEventListener("click", () => {
+  // Create a high-res canvas
+  const bigCanvas = document.createElement("canvas");
+  bigCanvas.width = 1024;
+  bigCanvas.height = 1024;
+
+  const bigCtx = bigCanvas.getContext("2d")!;
+
+  // Scale so our commands draw correctly (4×)
+  bigCtx.scale(4, 4);
+
+  // Draw everything using SAME COMMANDS
+  for (const cmd of displayList) {
+    cmd.display(bigCtx);
+  }
+
+  // Export PNG
+  const link = document.createElement("a");
+  link.href = bigCanvas.toDataURL("image/png");
+  link.download = "sketchpad.png";
+  link.click();
+});
+
+// Example asset
 const example = document.createElement("p");
 example.innerHTML =
   `Example asset: <img src="${exampleIconUrl}" class="icon" />`;
