@@ -44,29 +44,51 @@ const thickBtn = document.createElement("button");
 thickBtn.textContent = "Thick Marker";
 buttonRow.appendChild(thickBtn);
 
-// Sticker buttons
+// ======================================================
+// STICKER BUTTONS (Step 8 + Step 9)
+// ======================================================
 const stickerRow = document.createElement("div");
 document.body.appendChild(stickerRow);
 
+// Initial stickers
 const stickers = ["😀", "⭐", "🔥"];
 let currentSticker: string | null = null;
 
-stickers.forEach((stk) => {
+// Shared function to generate ANY sticker button
+function createStickerButton(sticker: string) {
   const btn = document.createElement("button");
-  btn.textContent = stk;
+  btn.textContent = sticker;
   stickerRow.appendChild(btn);
 
   btn.addEventListener("click", () => {
-    currentSticker = stk;
-    currentThickness = 0; // disable marker thickness
+    currentSticker = sticker;
+    currentThickness = 0; // turn off marker mode
     selectTool(btn);
   });
+}
+
+// Create initial sticker buttons
+stickers.forEach((s) => createStickerButton(s));
+
+// Step 9 — Custom sticker button
+const addStickerBtn = document.createElement("button");
+addStickerBtn.textContent = "+ Custom Sticker";
+stickerRow.appendChild(addStickerBtn);
+
+addStickerBtn.addEventListener("click", () => {
+  const text = prompt("Enter a custom sticker:", "🧽");
+  if (!text) return;
+
+  stickers.push(text); // treat same as built-ins
+  createStickerButton(text); // auto-generate new button
 });
 
-// Marker thickness
+// ======================================================
+// MARKER CONFIG
+// ======================================================
 let currentThickness = 2;
 
-// Tool highlight helper
+// Highlight selected tool
 function selectTool(btn: HTMLButtonElement) {
   document.querySelectorAll("button").forEach((b) =>
     b.classList.remove("selectedTool")
@@ -74,7 +96,7 @@ function selectTool(btn: HTMLButtonElement) {
   btn.classList.add("selectedTool");
 }
 
-// Marker tool selection
+// Marker mode selection
 thinBtn.addEventListener("click", () => {
   currentSticker = null;
   currentThickness = 2;
@@ -88,15 +110,13 @@ thickBtn.addEventListener("click", () => {
 });
 
 // ======================================================
-// COMMAND INTERFACES
+// COMMAND PATTERN
 // ======================================================
 interface DisplayCommand {
   display(ctx: CanvasRenderingContext2D): void;
 }
 
-// ======================================================
-// MARKER COMMAND
-// ======================================================
+// ---------- Marker Command (Step 5) ----------
 class MarkerCommand implements DisplayCommand {
   points: Array<[number, number]> = [];
   thickness: number;
@@ -121,14 +141,11 @@ class MarkerCommand implements DisplayCommand {
     for (let i = 1; i < this.points.length; i++) {
       ctx.lineTo(this.points[i][0], this.points[i][1]);
     }
-
     ctx.stroke();
   }
 }
 
-// ======================================================
-// STICKER COMMAND (Step 8a)
-// ======================================================
+// ---------- Sticker Command (Step 8a) ----------
 class StickerCommand implements DisplayCommand {
   x: number;
   y: number;
@@ -148,9 +165,7 @@ class StickerCommand implements DisplayCommand {
   }
 }
 
-// ======================================================
-// STICKER PREVIEW COMMAND (Step 8b)
-// ======================================================
+// ---------- Sticker Preview Command (Step 8b) ----------
 class StickerPreviewCommand implements DisplayCommand {
   x: number;
   y: number;
@@ -179,9 +194,7 @@ class StickerPreviewCommand implements DisplayCommand {
   }
 }
 
-// ======================================================
-// MARKER PREVIEW COMMAND (Step 7)
-// ======================================================
+// ---------- Marker Preview Command (Step 7) ----------
 class ToolPreviewCommand implements DisplayCommand {
   x: number;
   y: number;
@@ -202,7 +215,7 @@ class ToolPreviewCommand implements DisplayCommand {
   display(ctx: CanvasRenderingContext2D) {
     ctx.save();
     ctx.lineWidth = 1;
-    ctx.strokeStyle = "rgba(0, 0, 0, 0.5)";
+    ctx.strokeStyle = "rgba(0,0,0,0.5)";
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.thickness / 2, 0, Math.PI * 2);
     ctx.stroke();
@@ -211,7 +224,7 @@ class ToolPreviewCommand implements DisplayCommand {
 }
 
 // ======================================================
-// DATA STRUCTURES
+// STATE
 // ======================================================
 let displayList: DisplayCommand[] = [];
 let redoStack: DisplayCommand[] = [];
@@ -220,7 +233,7 @@ let currentCommand: MarkerCommand | null = null;
 let previewCommand: StickerPreviewCommand | ToolPreviewCommand | null = null;
 
 // ======================================================
-// REDRAW FUNCTION
+// REDRAW FUNCTION (Step 3)
 // ======================================================
 function redraw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -245,10 +258,9 @@ canvas.addEventListener("mousemove", (e) => {
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
 
-  // --- STEP 8b: Sticker Preview ---
+  // ---------- STICKER PREVIEW (Step 8b) ----------
   if (currentSticker) {
     const safeSticker = currentSticker ?? "";
-
     if (
       !previewCommand ||
       !(previewCommand instanceof StickerPreviewCommand)
@@ -262,7 +274,7 @@ canvas.addEventListener("mousemove", (e) => {
     return;
   }
 
-  // --- Marker Preview (Step 7) ---
+  // ---------- MARKER PREVIEW (Step 7) ----------
   if (
     !previewCommand ||
     !(previewCommand instanceof ToolPreviewCommand)
@@ -280,7 +292,7 @@ canvas.addEventListener("mousemove", (e) => {
   }
 });
 
-// Mouse down — place sticker OR start drawing
+// Click to place sticker OR start drawing
 canvas.addEventListener("mousedown", (e) => {
   const rect = canvas.getBoundingClientRect();
   const x = e.clientX - rect.left;
@@ -288,7 +300,7 @@ canvas.addEventListener("mousedown", (e) => {
 
   redoStack = [];
 
-  // --- STEP 8a: Place Sticker ---
+  // ---------- Step 8a: Place Sticker ----------
   if (currentSticker) {
     const safeSticker = currentSticker ?? "";
     const stickerCmd = new StickerCommand(x, y, safeSticker);
@@ -297,7 +309,7 @@ canvas.addEventListener("mousedown", (e) => {
     return;
   }
 
-  // Start a marker stroke
+  // Marker stroke
   currentCommand = new MarkerCommand(x, y, currentThickness);
   displayList.push(currentCommand);
   canvas.dispatchEvent(new Event("drawing-changed"));
@@ -327,7 +339,7 @@ redoBtn.addEventListener("click", () => {
   canvas.dispatchEvent(new Event("drawing-changed"));
 });
 
-// Example asset
+// Example asset at bottom
 const example = document.createElement("p");
 example.innerHTML =
   `Example asset: <img src="${exampleIconUrl}" class="icon" />`;
