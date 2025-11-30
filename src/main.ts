@@ -56,7 +56,7 @@ const stickerRow = document.createElement("div");
 document.body.appendChild(stickerRow);
 
 // Initial stickers
-const stickers = ["😀", "⭐", "🔥"];
+const stickers = ["😺", "🌈", "🍀"];
 let currentSticker: string | null = null;
 
 // Shared function to generate ANY sticker button
@@ -163,7 +163,7 @@ class StickerCommand implements DisplayCommand {
   }
 
   display(ctx: CanvasRenderingContext2D) {
-    ctx.font = "24px serif";
+    ctx.font = "50px serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(this.sticker, this.x, this.y);
