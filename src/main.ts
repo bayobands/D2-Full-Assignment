@@ -20,4 +20,5 @@ document.body.appendChild(canvas);
 const example = document.createElement("p");
 example.innerHTML =
   `Example asset: <img src="${exampleIconUrl}" class="icon" />`;
+
 document.body.appendChild(example);
