@@ -158,7 +158,7 @@ let redoStack: DisplayCommand[] = [];
 let currentCommand: MarkerCommand | null = null;
 
 // Preview is OFF in Step 8a
-let previewCommand = null;
+const _previewCommand = null;
 
 // ======================================================
 // REDRAW
